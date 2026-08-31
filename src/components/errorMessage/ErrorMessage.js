@@ -1,8 +1,18 @@
+import img from "./error.gif";
+
 const ErrorMessage = () => {
   return (
-    <div class="alert alert-info" role="alert">
-      No data!
-    </div>
+    <img
+      style={{
+        display: "block",
+        width: "250px",
+        height: "250px",
+        objectFit: "contain",
+        margin: "0 auto",
+      }}
+      src={img}
+      alt="Error"
+    />
   );
 };
 
