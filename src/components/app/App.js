@@ -8,7 +8,7 @@ import decoration from "../../resources/img/vision.png";
 
 class App extends Component {
   state = {
-    selectedChar: null,
+    selectedChar: Math.floor(Math.random() * 20) + 1,
   };
 
   onCharSelected = (id) => {
