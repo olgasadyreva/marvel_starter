@@ -36,7 +36,9 @@ class CharInfo extends Component {
       .getCharacter(charId)
       .then(this.onCharLoaded)
       .catch(this.onError);
-  }
+
+    this.foo.bar = 0;
+  };
 
   onCharLoaded = (char) => {
     this.setState({
@@ -111,8 +113,7 @@ const View = ({ char }) => {
 
       <ul className="char__comics-list">
         {comics.length > 0 ? null : "There is no comics whith this character"}
-        {
-					comics.map((item, i) => {
+        {comics.map((item, i) => {
           //eslint-disable-next-line
           if (i > 9) return;
           return (
