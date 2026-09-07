@@ -17,8 +17,6 @@ class App extends Component {
   };
 
   render() {
-    if (this.state.error) {
-    }
     return (
       <div className="app">
         <AppHeader />

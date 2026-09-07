@@ -4,36 +4,78 @@ import ErrorMessage from "../errorMessage/ErrorMessage";
 import MarvelService from "../../services/MarvelService";
 import "./charList.scss";
 
+const PAGE_SIZE = 9;
+
 class CharList extends Component {
   state = {
-    charList: [],
+    allChars: [],
+    visibleChars: [],
     loading: true,
     error: false,
+    newItemLoading: false,
+    currentPage: 0,
+    charEnded: false,
   };
 
   marvelService = new MarvelService();
+  _isMounted = false;
 
   componentDidMount() {
-    this.foo.bar = 0;
-
-    this.marvelService
-      .getAllCharacters()
-      .then(this.onCharListLoaded)
-      .catch(this.onError);
+    if (!this._isMounted) {
+      this._isMounted = true;
+      this.loadAllCharacters();
+    }
   }
 
-  onCharListLoaded = (charList) => {
-    this.setState({
-      charList,
-      loading: false,
-    });
+  componentWillUnmount() {
+    this._isMounted = false;
+  }
+
+  loadAllCharacters = async () => {
+    try {
+      this.setState({ loading: true });
+      const chars = await this.marvelService.getAllCharacters();
+      if (!this._isMounted) return;
+
+      chars.sort((a, b) => a.id - b.id); // опционально
+      const firstPage = chars.slice(0, PAGE_SIZE);
+      const ended = chars.length <= PAGE_SIZE;
+
+      this.setState({
+        allChars: chars,
+        visibleChars: firstPage,
+        loading: false,
+        currentPage: 1,
+        charEnded: ended,
+      });
+    } catch (err) {
+      if (this._isMounted) {
+        this.setState({ error: true, loading: false });
+      }
+    }
   };
 
-  onError = () => {
-    this.setState({
-      error: true,
-      loading: false,
-    });
+  loadMore = () => {
+    const { allChars, currentPage, charEnded } = this.state;
+    if (charEnded) return;
+
+    this.setState({ newItemLoading: true });
+
+    setTimeout(() => {
+      const nextPage = currentPage + 1;
+      const start = (nextPage - 1) * PAGE_SIZE;
+      const end = start + PAGE_SIZE;
+      const newPortion = allChars.slice(start, end);
+
+      const ended = end >= allChars.length;
+
+      this.setState((prev) => ({
+        visibleChars: [...prev.visibleChars, ...newPortion],
+        newItemLoading: false,
+        currentPage: nextPage,
+        charEnded: ended,
+      }));
+    }, 300);
   };
 
   renderItems(arr) {
@@ -62,20 +104,24 @@ class CharList extends Component {
   }
 
   render() {
-    const { charList, loading, error } = this.state;
-
-    const items = this.renderItems(charList);
+    const { visibleChars, loading, error, newItemLoading, charEnded } =
+      this.state;
 
     const errorMessage = error ? <ErrorMessage /> : null;
     const spinner = loading ? <Spinner /> : null;
-    const content = !(loading || error) ? items : null;
+    const content = !(loading || error) ? this.renderItems(visibleChars) : null;
 
     return (
       <div className="char__list">
         {errorMessage}
         {spinner}
         {content}
-        <button className="button button__main button__long">
+        <button
+          className="button button__main button__long"
+          disabled={newItemLoading}
+          style={{ display: charEnded ? "none" : "block" }}
+          onClick={this.loadMore}
+        >
           <div className="inner">load more</div>
         </button>
       </div>
