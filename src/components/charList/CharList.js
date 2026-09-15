@@ -1,4 +1,6 @@
-import { Component } from "react";
+import { useState, useEffect, useRef, useCallback  } from "react";
+import PropTypes from "prop-types";
+
 import Spinner from "../spinner/Spinner";
 import ErrorMessage from "../errorMessage/ErrorMessage";
 import MarvelService from "../../services/MarvelService";
@@ -6,80 +8,86 @@ import "./charList.scss";
 
 const PAGE_SIZE = 9;
 
-class CharList extends Component {
-  state = {
-    allChars: [],
-    visibleChars: [],
-    loading: true,
-    error: false,
-    newItemLoading: false,
-    currentPage: 0,
-    charEnded: false,
-  };
+const CharList = (props) => {
+  const [allChars, setAllChars] = useState([]);
+  const [visibleChars, setVisibleChars] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [newItemLoading, setNewItemLoading] = useState(false);
+  const [charEnded, setCharEnded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
 
-  marvelService = new MarvelService();
-  _isMounted = false;
+  const marvelService = useRef(new MarvelService()).current;
+  const isMounted = useRef(false);
 
-  componentDidMount() {
-    if (!this._isMounted) {
-      this._isMounted = true;
-      this.loadAllCharacters();
-    }
-  }
+  useEffect(() => {
+    isMounted.current = true;
+    loadAllCharacters();
 
-  componentWillUnmount() {
-    this._isMounted = false;
-  }
+    return () => {
+			isMounted.current = false;
+		};
+  }, []);
 
-  loadAllCharacters = async () => {
+  const loadAllCharacters = async () => {
     try {
-      this.setState({ loading: true });
-      const chars = await this.marvelService.getAllCharacters();
-      if (!this._isMounted) return;
+      setLoading(true);
+      const chars = await marvelService.getAllCharacters();
+      if (!isMounted.current) return;
 
-      chars.sort((a, b) => a.id - b.id); // опционально
+      chars.sort((a, b) => a.id - b.id);
       const firstPage = chars.slice(0, PAGE_SIZE);
       const ended = chars.length <= PAGE_SIZE;
 
-      this.setState({
-        allChars: chars,
-        visibleChars: firstPage,
-        loading: false,
-        currentPage: 1,
-        charEnded: ended,
-      });
+      setAllChars(chars);
+      setVisibleChars(firstPage);
+      setLoading(false);
+      setCharEnded(1);
+      setCharEnded(ended);
     } catch (err) {
-      if (this._isMounted) {
-        this.setState({ error: true, loading: false });
+      if (isMounted.current) {
+        setLoading(false);
+        setError(true);
+				onError();
       }
     }
   };
 
-  loadMore = () => {
-    const { allChars, currentPage, charEnded } = this.state;
+  const loadMore = useCallback(() => {
     if (charEnded) return;
 
-    this.setState({ newItemLoading: true });
+    setNewItemLoading(true);
 
     setTimeout(() => {
       const nextPage = currentPage + 1;
-      const start = (nextPage - 1) * PAGE_SIZE;
+      const start = nextPage * PAGE_SIZE;
       const end = start + PAGE_SIZE;
       const newPortion = allChars.slice(start, end);
 
       const ended = end >= allChars.length;
 
-      this.setState((prev) => ({
-        visibleChars: [...prev.visibleChars, ...newPortion],
-        newItemLoading: false,
-        currentPage: nextPage,
-        charEnded: ended,
-      }));
+      setVisibleChars((prev) => [...prev, ...newPortion]);
+      setNewItemLoading(false);
+      setCurrentPage(nextPage);
+      setCharEnded(ended);
     }, 300);
-  };
+  }, [allChars, currentPage, charEnded]);
 
-  renderItems(arr) {
-    const items = arr.map((item) => {
+	const onError = () => {
+		setError(true);
+		setLoading(loading => false);
+	}
+
+	const itemRefs = useRef([]);
+
+  const focusOnItem = (id) => {
+		itemRefs.current.forEach(item => item.classList.remove('char__item_selected'));
+		itemRefs.current[id].classList.add('char__item_selected');
+		itemRefs.current[id].focus();
+  }
+
+  function renderItems(arr) {
+    const items = arr.map((item, i) => {
       let imgStyle = { objectFit: "cover" };
       if (
         item.thumbnail ===
@@ -91,9 +99,19 @@ class CharList extends Component {
       return (
         <li
           className="char__item"
+					tabIndex={0}
+					ref={el => itemRefs.current[i] = el}
           key={item.id}
-          onClick={() => this.props.onCharSelected(item.id)}
-        >
+          onClick={() => {
+						props.onCharSelected(item.id);
+					focusOnItem(i);
+					}}
+					onKeyDown={(e) => {
+							if (e.key === ' ' || e.key === "Enter") {
+									props.onCharSelected(item.id);
+									focusOnItem(i);
+							}
+					}}>
           <img src={item.thumbnail} alt={item.name} style={imgStyle} />
           <div className="char__name">{item.name}</div>
         </li>
@@ -103,30 +121,29 @@ class CharList extends Component {
     return <ul className="char__grid">{items}</ul>;
   }
 
-  render() {
-    const { visibleChars, loading, error, newItemLoading, charEnded } =
-      this.state;
+  const errorMessage = error ? <ErrorMessage /> : null;
+  const spinner = loading ? <Spinner /> : null;
+  const content = !(loading || error) ? renderItems(visibleChars) : null;
 
-    const errorMessage = error ? <ErrorMessage /> : null;
-    const spinner = loading ? <Spinner /> : null;
-    const content = !(loading || error) ? this.renderItems(visibleChars) : null;
+  return (
+    <div className="char__list">
+      {errorMessage}
+      {spinner}
+      {content}
+      <button
+        className="button button__main button__long"
+        disabled={newItemLoading}
+        style={{ display: charEnded ? "none" : "block" }}
+        onClick={loadMore}
+      >
+        <div className="inner">load more</div>
+      </button>
+    </div>
+  );
+};
 
-    return (
-      <div className="char__list">
-        {errorMessage}
-        {spinner}
-        {content}
-        <button
-          className="button button__main button__long"
-          disabled={newItemLoading}
-          style={{ display: charEnded ? "none" : "block" }}
-          onClick={this.loadMore}
-        >
-          <div className="inner">load more</div>
-        </button>
-      </div>
-    );
-  }
-}
+CharList.propTypes = {
+  onCharSelected: PropTypes.func.isRequired,
+};
 
 export default CharList;
