@@ -3,7 +3,8 @@ import PropTypes from "prop-types";
 
 import Spinner from "../spinner/Spinner";
 import ErrorMessage from "../errorMessage/ErrorMessage";
-import MarvelService from "../../services/MarvelService";
+import useMarvelService from "../../services/MarvelService";
+
 import "./charList.scss";
 
 const PAGE_SIZE = 9;
@@ -11,28 +12,33 @@ const PAGE_SIZE = 9;
 const CharList = (props) => {
   const [allChars, setAllChars] = useState([]);
   const [visibleChars, setVisibleChars] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
   const [newItemLoading, setNewItemLoading] = useState(false);
   const [charEnded, setCharEnded] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
 
-  const marvelService = useRef(new MarvelService()).current;
+
+	//const marvelService = useRef(new useMarvelService()).current;
+	// const {loading, error, getAllCharacters} = useRef(useMarvelService()).current;
   const isMounted = useRef(false);
+
+	const { loading, error, getAllCharacters, clearError } = useMarvelService();
+
 
   useEffect(() => {
     isMounted.current = true;
-    loadAllCharacters();
+    loadAllCharacters(true);
 
     return () => {
 			isMounted.current = false;
 		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadAllCharacters = async () => {
-    try {
-      setLoading(true);
-      const chars = await marvelService.getAllCharacters();
+  const loadAllCharacters = async (initial) => {
+			clearError();
+
+			initial ? setNewItemLoading(false) : setNewItemLoading(true)
+      const chars = await getAllCharacters();
       if (!isMounted.current) return;
 
       chars.sort((a, b) => a.id - b.id);
@@ -41,22 +47,14 @@ const CharList = (props) => {
 
       setAllChars(chars);
       setVisibleChars(firstPage);
-      setLoading(false);
-      setCharEnded(1);
+      setCurrentPage(1);
       setCharEnded(ended);
-    } catch (err) {
-      if (isMounted.current) {
-        setLoading(false);
-        setError(true);
-				onError();
-      }
-    }
   };
 
   const loadMore = useCallback(() => {
     if (charEnded) return;
 
-    setNewItemLoading(true);
+		setNewItemLoading(true);
 
     setTimeout(() => {
       const nextPage = currentPage + 1;
@@ -67,16 +65,11 @@ const CharList = (props) => {
       const ended = end >= allChars.length;
 
       setVisibleChars((prev) => [...prev, ...newPortion]);
-      setNewItemLoading(false);
+			setNewItemLoading(false);
       setCurrentPage(nextPage);
       setCharEnded(ended);
     }, 300);
   }, [allChars, currentPage, charEnded]);
-
-	const onError = () => {
-		setError(true);
-		setLoading(loading => false);
-	}
 
 	const itemRefs = useRef([]);
 
@@ -122,14 +115,14 @@ const CharList = (props) => {
   }
 
   const errorMessage = error ? <ErrorMessage /> : null;
-  const spinner = loading ? <Spinner /> : null;
-  const content = !(loading || error) ? renderItems(visibleChars) : null;
+  const spinner = loading && !newItemLoading ? <Spinner /> : null;
+  // const content = !(loading || error) ? renderItems(visibleChars) : null;
 
   return (
     <div className="char__list">
       {errorMessage}
       {spinner}
-      {content}
+			{renderItems(visibleChars)}
       <button
         className="button button__main button__long"
         disabled={newItemLoading}

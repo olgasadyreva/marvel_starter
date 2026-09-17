@@ -1,17 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import ErrorMessage from "../errorMessage/ErrorMessage";
 import Spinner from "../spinner/Spinner";
-import MarvelService from "../../services/MarvelService";
+import useMarvelService from "../../services/MarvelService";
 
 import "./randomChar.scss";
 import mjolnir from "../../resources/img/mjolnir.png";
 
 const RandomChar = () => {
   const [char, setChar] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
 
-  const marvelService = new MarvelService();
+  const {loading, error, getCharacter, clearError} = useMarvelService();
 	const isMounted = useRef(false);
 
   useEffect(() => {
@@ -27,24 +25,17 @@ const RandomChar = () => {
    const onCharLoaded = (char) => {
     if (!isMounted.current) return;
     setChar(char);
-    setLoading(false);
   };
 
-  const onError = () => {
-    if (!isMounted.current) return;
-    setLoading(false);
-    setError(true);
-  };
+
 
    const updateChar = useCallback(() => {
+		clearError();
     const id = Math.floor(Math.random() * (20 - 1) + 1);
-    setLoading(true);
-    setError(false);
 
-    marvelService
-      .getCharacter(id)
+    getCharacter(id)
       .then(onCharLoaded)
-      .catch(onError);
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
