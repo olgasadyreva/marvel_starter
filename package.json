@@ -43,6 +43,7 @@
     "@parcel/watcher@2.6.0": true
   },
   "devDependencies": {
+    "react-router-dom": "^7.18.4",
     "sass": "^1.103.1"
   }
 }
